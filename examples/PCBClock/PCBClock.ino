@@ -10,8 +10,8 @@
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
 
-const char *ssid     = "WiFi SSID";
-const char *password = "WIFI PASSWORD";
+const char *ssid     = "Flutt";
+const char *password = "Buddies1";
 
 const char *ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;         //time zone * 3600 , my time zone is  +1 GTM
