@@ -8,22 +8,14 @@ typedef enum {
 
 static disp_size_t disp_size;
 
-
 static void profile_create(lv_obj_t *parent);
 
 static void ta_event_cb(lv_event_t *e);
-static void birthday_event_cb(lv_event_t *e);
-static void calendar_event_cb(lv_event_t *e);
 static void slider_event_cb(lv_event_t *e);
 
-
-static lv_obj_t *tv;
-static lv_obj_t *calendar;
 static lv_style_t style_text_muted;
 static lv_style_t style_title;
 static lv_style_t style_icon;
-static lv_style_t style_bullet;
-
 
 static const lv_font_t *font_large;
 static const lv_font_t *font_normal;
@@ -32,62 +24,48 @@ static uint32_t session_desktop = 1000;
 static uint32_t session_tablet = 1000;
 static uint32_t session_mobile = 1000;
 
-
 void lv_demo_widgets(void)
 {
     disp_size = DISP_SMALL;
     font_large = LV_FONT_DEFAULT;
     font_normal = LV_FONT_DEFAULT;
-    lv_coord_t tab_h;
+
+    lv_style_t style_bg;
+    lv_style_init(&style_bg);
+    lv_style_set_bg_color(&style_bg, lv_color_white());  // Set background color to white
+
+    lv_theme_t * th = lv_theme_default_init(NULL, lv_palette_main(LV_PALETTE_RED), lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_GROW, font_normal);
+
+    // Get the default style of the screen and set the background to white
+    // * screen = lv_scr_act();
+   // lv_obj_add_style(screen, &style_bg, LV_PART_MAIN);
+
     
-    tab_h = 70;
-
-    lv_theme_default_init(NULL, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK,
-                          font_normal);
-
-
     lv_style_init(&style_text_muted);
     lv_style_set_text_opa(&style_text_muted, LV_OPA_50);
 
     lv_style_init(&style_title);
     lv_style_set_text_font(&style_title, font_large);
 
-    lv_style_init(&style_icon);
-    lv_style_set_text_color(&style_icon, lv_theme_get_color_primary(NULL));
-    lv_style_set_text_font(&style_icon, font_large);
 
-    lv_style_init(&style_bullet);
-    lv_style_set_border_width(&style_bullet, 0);
-    lv_style_set_radius(&style_bullet, LV_RADIUS_CIRCLE);
-
-    tv = lv_tabview_create(lv_scr_act(), LV_DIR_TOP, tab_h);
 
     lv_obj_set_style_text_font(lv_scr_act(), font_normal, 0);
-
-   
-    lv_obj_t *label = lv_label_create(lv_scr_act());
-    lv_obj_add_style(label, &style_title, 0);
-    lv_label_set_text(label, "LVGL v8");    
-
-    label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "Widgets demo");
-    lv_obj_add_style(label, &style_text_muted, 0);
                 
     profile_create(lv_scr_act());        
+    
 }
-
 
 static void profile_create(lv_obj_t *parent)
 {
     lv_obj_t *panel1 = lv_obj_create(parent);
     lv_obj_set_height(panel1, LV_SIZE_CONTENT);
 
-    LV_IMG_DECLARE(img_demo_widgets_avatar);
-    lv_obj_t *avatar = lv_img_create(panel1);
-    lv_img_set_src(avatar, &img_demo_widgets_avatar);
+   // LV_IMG_DECLARE(img_demo_widgets_avatar);
+   // lv_obj_t *avatar = lv_img_create(panel1);
+   // lv_img_set_src(avatar, &img_demo_widgets_avatar);
 
     lv_obj_t *name = lv_label_create(panel1);
-    lv_label_set_text(name, "Alex El Vergon");
+    lv_label_set_text(name, "Alex Test");
     lv_obj_add_style(name, &style_title, 0);
 
     lv_obj_t *dsc = lv_label_create(panel1);
@@ -155,13 +133,10 @@ static void profile_create(lv_obj_t *parent)
 
     lv_obj_t *sw2 = lv_switch_create(panel3);
 
-
     static lv_coord_t grid_main_col_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
     static lv_coord_t grid_main_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
     lv_obj_set_grid_dsc_array(parent, grid_main_col_dsc, grid_main_row_dsc);
 
-
-    /*Create the top panel*/
     static lv_coord_t grid_1_col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
     static lv_coord_t grid_1_row_dsc[] = {LV_GRID_CONTENT, /*Avatar*/
                                             LV_GRID_CONTENT, /*Name*/
@@ -187,17 +162,16 @@ static void profile_create(lv_obj_t *parent)
         LV_GRID_CONTENT,  /*Box title*/
         40,               /*Box*/
         LV_GRID_CONTENT,  /*Box title*/
-        40, LV_GRID_TEMPLATE_LAST               /*Box*/
+        40, LV_GRID_TEMPLATE_LAST             
     };
 
-    
     lv_obj_set_grid_dsc_array(panel3, grid_2_col_dsc, grid_2_row_dsc);
 
     lv_obj_set_grid_cell(panel1, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 0, 1);
 
     lv_obj_set_style_text_align(dsc, LV_TEXT_ALIGN_CENTER, 0);
 
-    lv_obj_set_grid_cell(avatar, LV_GRID_ALIGN_CENTER, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
+ //   lv_obj_set_grid_cell(avatar, LV_GRID_ALIGN_CENTER, 0, 2, LV_GRID_ALIGN_CENTER, 0, 1);
     lv_obj_set_grid_cell(name, LV_GRID_ALIGN_CENTER, 0, 2, LV_GRID_ALIGN_CENTER, 1, 1);
     lv_obj_set_grid_cell(dsc, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_START, 2, 1);
     lv_obj_set_grid_cell(email_icn, LV_GRID_ALIGN_CENTER, 0, 1, LV_GRID_ALIGN_CENTER, 3, 1);
@@ -216,10 +190,7 @@ static void profile_create(lv_obj_t *parent)
     lv_obj_set_grid_cell(sw1, LV_GRID_ALIGN_START, 0, 1, LV_GRID_ALIGN_START, 5, 1);
     lv_obj_set_grid_cell(team_player_label, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 4, 1);
     lv_obj_set_grid_cell(sw2, LV_GRID_ALIGN_START, 1, 1, LV_GRID_ALIGN_START, 5, 1);
-    
 }
-
-
 
 static void slider_event_cb(lv_event_t *e)
 {
@@ -264,7 +235,3 @@ static void slider_event_cb(lv_event_t *e)
         }
     }
 }
-
-
-
-
