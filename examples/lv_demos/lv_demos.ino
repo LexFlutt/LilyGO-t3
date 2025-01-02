@@ -57,11 +57,10 @@ static lv_disp_drv_t disp_drv;
 static lv_color_t *lv_disp_buf;
 static bool is_initialized_lvgl = false;
 TinyGPSPlus gps;
-int  displayMode = 0;
+int displayMode = 0;
 char timeStr[64];
 char altitudeStr[32];
 char speedStr[32];
-
 
 typedef struct
 {
@@ -138,22 +137,25 @@ void printLocalTime()
     if (!getLocalTime(&timeinfo))
     {
         return;
-    }    
-    strftime(timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &timeinfo);        
+    }
+    strftime(timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &timeinfo);
 }
 
 void btn_event_handler(lv_event_t *e)
 {
-        displayMode = (displayMode + 1) % 3;
-        if (displayMode == 0){
-            lv_label_set_text(ui_DisplayLabel, timeStr);            
-        }
-        else if (displayMode == 1){
-            lv_label_set_text(ui_DisplayLabel, altitudeStr);    
-        }
-        else if (displayMode == 2){
-            lv_label_set_text(ui_DisplayLabel, speedStr);    
-        }
+    displayMode = (displayMode + 1) % 3;
+    if (displayMode == 0)
+    {
+        lv_label_set_text(ui_DisplayLabel, timeStr);
+    }
+    else if (displayMode == 1)
+    {
+        lv_label_set_text(ui_DisplayLabel, altitudeStr);
+    }
+    else if (displayMode == 2)
+    {
+        lv_label_set_text(ui_DisplayLabel, speedStr);
+    }
 }
 
 void InitScreen(void)
@@ -162,7 +164,7 @@ void InitScreen(void)
     lv_disp_t *dispp = lv_disp_get_default();
     lv_theme_t *theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), false, LV_FONT_DEFAULT);
     lv_disp_set_theme(dispp, theme);
-    ui_Screen1_screen_init();    
+    ui_Screen1_screen_init();
     lv_disp_load_scr(ui_Screen1);
 }
 
