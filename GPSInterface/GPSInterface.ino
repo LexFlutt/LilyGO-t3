@@ -8,12 +8,11 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
-
 #include "ui.h"
 
 #include <HardwareSerial.h>
-
 #include <TinyGPSPlus.h>
+
 HardwareSerial gpsSerial(1);
 
 const char *ssid = "Flutt";
@@ -21,6 +20,9 @@ const char *password = "Buddies1";
 const char *ntpServer = "time.nist.gov";
 const long gmtOffset_sec = -25200;
 const int daylightOffset_sec = 3600;
+
+#define BUTTON_PIN 14
+#define BATTERY_PIN 4
 
 TouchDrvCSTXXX touch;
 int16_t x[5], y[5];
@@ -35,6 +37,10 @@ int displayMode = 0;
 char timeStr[64];
 char altitudeStr[32];
 char speedStr[32];
+char batteryStr[32];
+char buttonLabelStr[32]; 
+
+bool isDisplayOn = true;
 
 typedef struct
 {
@@ -93,6 +99,7 @@ static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
     else
         data->state = LV_INDEV_STATE_REL;
 }
+esp_lcd_panel_handle_t panel_handle = NULL;
 
 void connectToWiFi()
 {
@@ -105,6 +112,29 @@ void connectToWiFi()
     }
 }
 
+void toggleDisplay() {
+     if (isDisplayOn) {
+        esp_lcd_panel_disp_off(panel_handle, true);
+        ledcWrite(0, 0);
+    } else {
+        esp_lcd_panel_disp_off(panel_handle, false); 
+        ledcWrite(0, 255);
+    }
+    isDisplayOn = !isDisplayOn;
+    Serial.println("Display toggled");
+    Serial.println(isDisplayOn);
+}
+
+void IRAM_ATTR buttonISR() {
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+
+    if (interrupt_time - last_interrupt_time > 200) { // Debouncing
+        toggleDisplay();
+    }
+    last_interrupt_time = interrupt_time;
+}
+
 void refreshDisplay()
 {
     struct tm timeinfo;
@@ -112,17 +142,24 @@ void refreshDisplay()
     {
         return;
     }
-    strftime(timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &timeinfo);    
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);    
     lv_label_set_text(ui_TimeLabel, timeStr);
 
     if (displayMode == 0)
     {
         lv_label_set_text(ui_DisplayLabel, speedStr);
+        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Altitude");
     }
     else if (displayMode == 1)
     {
         lv_label_set_text(ui_DisplayLabel, altitudeStr);
+        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Speed"); 
     }
+    lv_label_set_text(button_label, buttonLabelStr); 
+
+    float batteryVoltage = analogRead(BATTERY_PIN) * (3.3 / 4095.0) * 2;
+    snprintf(batteryStr, sizeof(batteryStr), "Battery: %.1f V", batteryVoltage);
+    lv_label_set_text(ui_BatteryLabel, batteryStr);
 }
 
 void btn_event_handler(lv_event_t *e)
@@ -143,6 +180,8 @@ void InitScreen(void)
 
 void setup()
 {
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
     Serial.begin(115200); // Initialize the USB serial port for debugging
     gpsSerial.begin(9600, SERIAL_8N1, 12, 13);
 
@@ -189,7 +228,7 @@ void setup()
             },
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_i80(i80_bus, &io_config, &io_handle));
-    esp_lcd_panel_handle_t panel_handle = NULL;
+    
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_LCD_RES,
         .color_space = ESP_LCD_COLOR_SPACE_RGB,
@@ -215,7 +254,7 @@ void setup()
 
     ledcSetup(0, 10000, 8);
     ledcAttachPin(PIN_LCD_BL, 0);
-    for (uint8_t i = 0; i < 0xFF; i++)
+    for (uint8_t i = 0; i < 0xAA; i++)
     {
         ledcWrite(0, i);
         delay(2);
