@@ -10,5 +10,6 @@ extern lv_obj_t* ui_Screen1;
 extern lv_obj_t* ui_Panel1;
 extern lv_obj_t* ui_Button1;
 extern lv_obj_t* ui_DisplayLabel;
+extern lv_obj_t* ui_TimeLabel;
 void ui_init(void);
 

@@ -131,31 +131,30 @@ void connectToWiFi()
     }
 }
 
-void printLocalTime()
+void refreshDisplay()
 {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
         return;
     }
-    strftime(timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &timeinfo);
-}
+    strftime(timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &timeinfo);    
+    lv_label_set_text(ui_TimeLabel, timeStr);
 
-void btn_event_handler(lv_event_t *e)
-{
-    displayMode = (displayMode + 1) % 3;
     if (displayMode == 0)
     {
-        lv_label_set_text(ui_DisplayLabel, timeStr);
+        lv_label_set_text(ui_DisplayLabel, speedStr);
     }
     else if (displayMode == 1)
     {
         lv_label_set_text(ui_DisplayLabel, altitudeStr);
     }
-    else if (displayMode == 2)
-    {
-        lv_label_set_text(ui_DisplayLabel, speedStr);
-    }
+}
+
+void btn_event_handler(lv_event_t *e)
+{
+    displayMode = !displayMode;
+     refreshDisplay();
 }
 
 void InitScreen(void)
@@ -303,8 +302,8 @@ void updateGPSData()
     float altitude = gps.altitude.feet();
     float speed = gps.speed.kmph();
 
-    snprintf(altitudeStr, sizeof(altitudeStr), "Altitude: %.2f ft", altitude);
-    snprintf(speedStr, sizeof(speedStr), "Speed: %.2f km/h", speed);
+    snprintf(altitudeStr, sizeof(altitudeStr), "%.1f ft", altitude);
+    snprintf(speedStr, sizeof(speedStr), "%.1f km/h", speed);
 }
 
 void loop()
@@ -314,9 +313,9 @@ void loop()
 
     static unsigned long lastUpdate = 0;
     if (millis() - lastUpdate >= 1000)
-    {
-        printLocalTime();
+    {    
         updateGPSData();
+        refreshDisplay();
         lastUpdate = millis();
     }
 }
