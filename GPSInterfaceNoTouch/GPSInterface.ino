@@ -79,13 +79,6 @@ void displayImage(const char *path)
     size_t fileSize = file.size();
     Serial.printf("File size: %zu bytes\n", fileSize);
 
-    if (fileSize > 200000)  // Example threshold, adjust based on your memory limits
-    {
-        Serial.println("File size too large");
-        file.close();
-        return;
-    }
-
     uint8_t *fileData = (uint8_t *)malloc(fileSize);
     if (!fileData)
     {
@@ -105,14 +98,20 @@ void displayImage(const char *path)
         return;
     }
 
+    // Create a new LVGL image descriptor
     lv_img_dsc_t img;
-    img.header.cf = LV_IMG_CF_RAW;  // Change this according to your image format
-    img.header.w = 240;             // Set your image width
-    img.header.h = 240;             // Set your image height
+    img.header.always_zero = 0;
+    img.header.w = 203;             // Set your image width
+    img.header.h = 304;             // Set your image height
+    img.header.cf = LV_IMG_CF_TRUE_COLOR;  // Assuming the image is in true color format
     img.data_size = fileSize;
     img.data = fileData;
 
+    // Set the image source for the LVGL image object
     lv_img_set_src(ui_ImageBackground, &img);
+
+    // Refresh the LVGL image object to display the new image
+    lv_obj_invalidate(ui_ImageBackground);
 
     free(fileData);
     Serial.println("Image displayed");
@@ -127,6 +126,7 @@ static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_
     }
     return false;
 }
+
 
 static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map)
 {
@@ -162,7 +162,7 @@ void toggleDisplay()
     {
         esp_lcd_panel_disp_off(panel_handle, false);
         ledcWrite(0, 255);
-        displayImage("/kelly.jpeg");
+        displayImage("/Kelly.png");
     }
     isDisplayOn = !isDisplayOn;
     Serial.println("Display toggled");
@@ -219,6 +219,22 @@ void InitScreen(void)
     ui_Screen1_screen_init();
     lv_disp_load_scr(ui_Screen1);
 }
+
+void listSPIFFSFiles()
+{
+    Serial.println("Listing files in SPIFFS");
+    File root = SPIFFS.open("/");
+    File file = root.openNextFile();
+    while (file)
+    {
+        Serial.print("FILE: ");
+        Serial.print(file.name());
+        Serial.print(" - SIZE: ");
+        Serial.println(file.size());
+        file = root.openNextFile();
+    }
+}
+
 
 void setup()
 {
@@ -324,18 +340,22 @@ void setup()
 
     InitScreen();
 
-    Serial.println("Setup complete");
+    
 
     if (!SPIFFS.begin(true))
     {
         Serial.println("An error occurred while mounting SPIFFS");
         return;
     }
-
-    displayImage("/kelly.jpeg");
+    
+   // 
 
     connectToWiFi();
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    delay(1000);
+    Serial.println("Setup complete");
+
+    displayImage("/Kelly.png");
 }
 
 void updateGPSData()

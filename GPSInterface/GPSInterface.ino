@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <TouchDrvCSTXXX.hpp>
+#include <HardwareSerial.h>
+#include <TinyGPSPlus.h>
+#include <SPIFFS.h>
+#include <FS.h>
+
 #include "pin_config.h"
 #include "lv_conf.h"
 #include "lvgl.h"
@@ -10,8 +15,7 @@
 #include "esp_lcd_panel_vendor.h"
 #include "ui.h"
 
-#include <HardwareSerial.h>
-#include <TinyGPSPlus.h>
+
 
 HardwareSerial gpsSerial(1);
 
@@ -20,6 +24,8 @@ const char *password = "Buddies1";
 const char *ntpServer = "time.nist.gov";
 const long gmtOffset_sec = -25200;
 const int daylightOffset_sec = 3600;
+
+File gpxFile;
 
 #define BUTTON_PIN 14
 #define BATTERY_PIN 4
@@ -100,6 +106,56 @@ static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
         data->state = LV_INDEV_STATE_REL;
 }
 esp_lcd_panel_handle_t panel_handle = NULL;
+
+void initGpsData(){
+     if (!SPIFFS.begin(true))
+    {
+        Serial.println("An error occurred while mounting SPIFFS");
+        return;
+    }
+    gpxFile = SPIFFS.open("/gps_data.gpx", FILE_WRITE);
+    if (!gpxFile)
+    {
+        Serial.println("Failed to open GPX file for writing");
+        return;
+    }
+    gpxFile.print("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n");
+    gpxFile.print("<gpx version=\"1.1\" creator=\"Arduino\">\n");
+    gpxFile.print("<trk>\n");
+    gpxFile.print("<name>GPS Track</name>\n");
+    gpxFile.print("<trkseg>\n");
+}
+
+
+void saveGPXData()
+{
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+
+    char timeStr[64];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+    gpxFile.print("<trkpt lat=\"");
+    gpxFile.print(gps.location.lat(), 6);
+    gpxFile.print("\" lon=\"");
+    gpxFile.print(gps.location.lng(), 6);
+    gpxFile.print("\">\n");
+    gpxFile.print("<ele>");
+    gpxFile.print(gps.altitude.meters());
+    gpxFile.print("</ele>\n");
+    gpxFile.print("<time>");
+    gpxFile.print(timeStr);
+    gpxFile.print("</time>\n");
+    gpxFile.print("</trkpt>\n");
+
+    gpxFile.flush(); // Ensure data is written to the file
+    Serial.println("GPS data appended to GPX file");
+}
+
 
 void connectToWiFi()
 {
@@ -302,6 +358,7 @@ void setup()
     lv_obj_add_event_cb(ui_Button1, btn_event_handler, LV_EVENT_CLICKED, NULL);
     connectToWiFi();
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    initGpsData();
 }
 
 void updateGPSData()
@@ -317,6 +374,7 @@ void updateGPSData()
 
     snprintf(altitudeStr, sizeof(altitudeStr), "%.1f ft", altitude);
     snprintf(speedStr, sizeof(speedStr), "%.1f km/h", speed);
+     saveGPXData();
 }
 
 void loop()
