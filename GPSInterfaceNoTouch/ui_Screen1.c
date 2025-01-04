@@ -27,6 +27,11 @@ void ui_Screen1_screen_init() {
     lv_style_set_border_width(&style_margin, 0);
     lv_style_set_bg_opa(&style_margin, LV_OPA_TRANSP);
 
+    ui_Panel1 = lv_obj_create(ui_Screen1);
+    lv_obj_set_size(ui_Panel1, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(ui_Panel1, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_border_width(ui_Panel1, 0, 0);
+    
     ui_TimeLabel = lv_label_create(ui_Screen1);
     lv_obj_set_width(ui_TimeLabel, LV_SIZE_CONTENT);
     lv_obj_set_height(ui_TimeLabel, LV_SIZE_CONTENT);
@@ -40,12 +45,12 @@ void ui_Screen1_screen_init() {
     lv_obj_set_y(ui_DisplayLabel, -10); 
     lv_label_set_text(ui_DisplayLabel, "100 km/h");
     
-    ui_BatteryLabel = lv_label_create(ui_Screen1); // Add this line
-    lv_obj_set_width(ui_BatteryLabel, LV_SIZE_CONTENT); // Add this line
-    lv_obj_set_height(ui_BatteryLabel, LV_SIZE_CONTENT); // Add this line
-    lv_obj_set_align(ui_BatteryLabel, LV_ALIGN_BOTTOM_RIGHT); // Add this line
-    lv_obj_set_y(ui_BatteryLabel, -10); // Add this line
-    lv_label_set_text(ui_BatteryLabel, "Battery: --.- V"); // Add this line
+    ui_BatteryLabel = lv_label_create(ui_Screen1);
+    lv_obj_set_width(ui_BatteryLabel, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_BatteryLabel, LV_SIZE_CONTENT);
+    lv_obj_set_align(ui_BatteryLabel, LV_ALIGN_BOTTOM_RIGHT);
+    lv_obj_set_y(ui_BatteryLabel, -10);
+    lv_label_set_text(ui_BatteryLabel, "Battery: --.- V");
 
     ui_Button1 = lv_btn_create(ui_Screen1);
     lv_obj_set_width(ui_Button1, 80);

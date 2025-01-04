@@ -8,9 +8,34 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
 #include "ui.h"
-
 #include <HardwareSerial.h>
 #include <TinyGPSPlus.h>
+#include <SPIFFS.h>
+#include <FS.h>
+#include <lvgl.h>
+
+void displayImage(const char *path, lv_obj_t *parent)
+{
+    File file = SPIFFS.open(path);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+
+    size_t fileSize = file.size();
+    uint8_t *fileData = (uint8_t *)malloc(fileSize);
+    file.read(fileData, fileSize);
+    file.close();
+
+    lv_obj_t *img = lv_img_create(parent);
+    lv_img_set_src(img, fileData);
+    lv_obj_set_width(img, LV_SIZE_CONTENT);
+    lv_obj_set_height(img, LV_SIZE_CONTENT);
+    lv_obj_set_align(img, LV_ALIGN_CENTER);
+
+    free(fileData);
+}
 
 HardwareSerial gpsSerial(1);
 
@@ -36,7 +61,7 @@ char timeStr[64];
 char altitudeStr[32];
 char speedStr[32];
 char batteryStr[32];
-char buttonLabelStr[32]; 
+char buttonLabelStr[32];
 
 bool isDisplayOn = true;
 
@@ -86,7 +111,6 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
     esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
 }
 
-
 esp_lcd_panel_handle_t panel_handle = NULL;
 
 void connectToWiFi()
@@ -100,12 +124,16 @@ void connectToWiFi()
     }
 }
 
-void toggleDisplay() {
-     if (isDisplayOn) {
+void toggleDisplay()
+{
+    if (isDisplayOn)
+    {
         esp_lcd_panel_disp_off(panel_handle, true);
         ledcWrite(0, 0);
-    } else {
-        esp_lcd_panel_disp_off(panel_handle, false); 
+    }
+    else
+    {
+        esp_lcd_panel_disp_off(panel_handle, false);
         ledcWrite(0, 255);
     }
     isDisplayOn = !isDisplayOn;
@@ -113,16 +141,17 @@ void toggleDisplay() {
     Serial.println(isDisplayOn);
 }
 
-void IRAM_ATTR buttonISR() {
+void IRAM_ATTR buttonISR()
+{
     static unsigned long last_interrupt_time = 0;
     unsigned long interrupt_time = millis();
 
-    if (interrupt_time - last_interrupt_time > 200) { // Debouncing
+    if (interrupt_time - last_interrupt_time > 200)
+    { // Debouncing
         toggleDisplay();
     }
     last_interrupt_time = interrupt_time;
 }
-
 void refreshDisplay()
 {
     struct tm timeinfo;
@@ -130,7 +159,7 @@ void refreshDisplay()
     {
         return;
     }
-    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);    
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
     lv_label_set_text(ui_TimeLabel, timeStr);
 
     if (displayMode == 0)
@@ -141,9 +170,9 @@ void refreshDisplay()
     else if (displayMode == 1)
     {
         lv_label_set_text(ui_DisplayLabel, altitudeStr);
-        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Speed"); 
+        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Speed");
     }
-    lv_label_set_text(button_label, buttonLabelStr); 
+    lv_label_set_text(button_label, buttonLabelStr);
 
     float batteryVoltage = analogRead(BATTERY_PIN) * (3.3 / 4095.0) * 2;
     snprintf(batteryStr, sizeof(batteryStr), "Battery: %.1f V", batteryVoltage);
@@ -153,7 +182,7 @@ void refreshDisplay()
 void btn_event_handler(lv_event_t *e)
 {
     displayMode = !displayMode;
-     refreshDisplay();
+    refreshDisplay();
 }
 
 void InitScreen(void)
@@ -170,7 +199,7 @@ void setup()
 {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
-    Serial.begin(115200); 
+    Serial.begin(115200);
     gpsSerial.begin(9600, SERIAL_8N1, 12, 13);
 
     pinMode(PIN_POWER_ON, OUTPUT);
@@ -216,7 +245,7 @@ void setup()
             },
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_i80(i80_bus, &io_config, &io_handle));
-    
+
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_LCD_RES,
         .color_space = ESP_LCD_COLOR_SPACE_RGB,
@@ -262,8 +291,6 @@ void setup()
     disp_drv.user_data = panel_handle;
     lv_disp_drv_register(&disp_drv);
 
-
-
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -272,6 +299,14 @@ void setup()
 
     InitScreen();
     lv_obj_add_event_cb(ui_Button1, btn_event_handler, LV_EVENT_CLICKED, NULL);
+    if (!SPIFFS.begin(true))
+    {
+        Serial.println("An error occurred while mounting SPIFFS");
+        return;
+    }
+
+    displayImage("/background.jpeg", ui_Panel1);
+
     connectToWiFi();
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
@@ -298,7 +333,7 @@ void loop()
 
     static unsigned long lastUpdate = 0;
     if (millis() - lastUpdate >= 1000)
-    {    
+    {
         updateGPSData();
         refreshDisplay();
         lastUpdate = millis();
