@@ -1,14 +1,11 @@
 #include "ui.h"
 
 lv_obj_t *ui_Screen1;
-lv_obj_t *ui_Panel1;
-lv_obj_t *ui_Button1;
 lv_obj_t *ui_TimeLabel;
 lv_obj_t *ui_DisplayLabel;
 lv_obj_t *ui_BatteryLabel;
-lv_obj_t *button_label;
+lv_obj_t *ui_ImageBackground;
 
-static lv_style_t style_margin;
 static lv_style_t style_large_text;
 static lv_style_t style_medium_text;
 
@@ -21,16 +18,6 @@ void ui_Screen1_screen_init() {
 
     lv_style_init(&style_medium_text);
     lv_style_set_text_font(&style_medium_text, &lv_font_montserrat_30);
-    
-    lv_style_init(&style_margin);
-    lv_style_set_pad_all(&style_margin, 10);
-    lv_style_set_border_width(&style_margin, 0);
-    lv_style_set_bg_opa(&style_margin, LV_OPA_TRANSP);
-
-    ui_Panel1 = lv_obj_create(ui_Screen1);
-    lv_obj_set_size(ui_Panel1, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(ui_Panel1, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_border_width(ui_Panel1, 0, 0);
     
     ui_TimeLabel = lv_label_create(ui_Screen1);
     lv_obj_set_width(ui_TimeLabel, LV_SIZE_CONTENT);
@@ -52,14 +39,11 @@ void ui_Screen1_screen_init() {
     lv_obj_set_y(ui_BatteryLabel, -10);
     lv_label_set_text(ui_BatteryLabel, "Battery: --.- V");
 
-    ui_Button1 = lv_btn_create(ui_Screen1);
-    lv_obj_set_width(ui_Button1, 80);
-    lv_obj_set_height(ui_Button1, 45);
-    lv_obj_set_align(ui_Button1, LV_ALIGN_BOTTOM_MID);
-    lv_obj_set_y(ui_Button1, -10); 
+    ui_ImageBackground= lv_img_create(ui_Screen1);
     
-    button_label = lv_label_create(ui_Button1);
-    lv_label_set_text(button_label, "Click");
+    lv_obj_set_width(ui_ImageBackground, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_ImageBackground, LV_SIZE_CONTENT);
+    lv_obj_set_align(ui_ImageBackground, LV_ALIGN_CENTER);
 
     lv_obj_add_style(ui_DisplayLabel, &style_large_text, 0);
     lv_obj_add_style(ui_TimeLabel, &style_medium_text, 0);

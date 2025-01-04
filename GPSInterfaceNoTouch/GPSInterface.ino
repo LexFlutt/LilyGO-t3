@@ -14,29 +14,6 @@
 #include <FS.h>
 #include <lvgl.h>
 
-void displayImage(const char *path, lv_obj_t *parent)
-{
-    File file = SPIFFS.open(path);
-    if (!file)
-    {
-        Serial.println("Failed to open file for reading");
-        return;
-    }
-
-    size_t fileSize = file.size();
-    uint8_t *fileData = (uint8_t *)malloc(fileSize);
-    file.read(fileData, fileSize);
-    file.close();
-
-    lv_obj_t *img = lv_img_create(parent);
-    lv_img_set_src(img, fileData);
-    lv_obj_set_width(img, LV_SIZE_CONTENT);
-    lv_obj_set_height(img, LV_SIZE_CONTENT);
-    lv_obj_set_align(img, LV_ALIGN_CENTER);
-
-    free(fileData);
-}
-
 HardwareSerial gpsSerial(1);
 
 const char *ssid = "Flutt";
@@ -61,7 +38,7 @@ char timeStr[64];
 char altitudeStr[32];
 char speedStr[32];
 char batteryStr[32];
-char buttonLabelStr[32];
+
 
 bool isDisplayOn = true;
 
@@ -89,6 +66,57 @@ lcd_cmd_t lcd_st7789v[] = {
     {0xE1, {0XF0, 0X08, 0X0C, 0X0B, 0X09, 0X24, 0X2B, 0X22, 0X43, 0X38, 0X15, 0X16, 0X2F, 0X37}, 14},
 
 };
+void displayImage(const char *path)
+{
+    Serial.printf("Displaying image: %s\n", path);
+    File file = SPIFFS.open(path);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+
+    size_t fileSize = file.size();
+    Serial.printf("File size: %zu bytes\n", fileSize);
+
+    if (fileSize > 200000)  // Example threshold, adjust based on your memory limits
+    {
+        Serial.println("File size too large");
+        file.close();
+        return;
+    }
+
+    uint8_t *fileData = (uint8_t *)malloc(fileSize);
+    if (!fileData)
+    {
+        Serial.println("Failed to allocate memory");
+        file.close();
+        return;
+    }
+
+    size_t bytesRead = file.read(fileData, fileSize);
+    Serial.printf("Bytes read: %zu\n", bytesRead);
+    file.close();
+
+    if (bytesRead != fileSize)
+    {
+        Serial.println("Failed to read the complete file");
+        free(fileData);
+        return;
+    }
+
+    lv_img_dsc_t img;
+    img.header.cf = LV_IMG_CF_RAW;  // Change this according to your image format
+    img.header.w = 240;             // Set your image width
+    img.header.h = 240;             // Set your image height
+    img.data_size = fileSize;
+    img.data = fileData;
+
+    lv_img_set_src(ui_ImageBackground, &img);
+
+    free(fileData);
+    Serial.println("Image displayed");
+}
 
 static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
@@ -115,9 +143,7 @@ esp_lcd_panel_handle_t panel_handle = NULL;
 
 void connectToWiFi()
 {
-
     WiFi.begin(ssid, password);
-
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
@@ -126,6 +152,7 @@ void connectToWiFi()
 
 void toggleDisplay()
 {
+    Serial.println("Going to toggla");
     if (isDisplayOn)
     {
         esp_lcd_panel_disp_off(panel_handle, true);
@@ -135,6 +162,7 @@ void toggleDisplay()
     {
         esp_lcd_panel_disp_off(panel_handle, false);
         ledcWrite(0, 255);
+        displayImage("/kelly.jpeg");
     }
     isDisplayOn = !isDisplayOn;
     Serial.println("Display toggled");
@@ -147,7 +175,7 @@ void IRAM_ATTR buttonISR()
     unsigned long interrupt_time = millis();
 
     if (interrupt_time - last_interrupt_time > 200)
-    { // Debouncing
+    { 
         toggleDisplay();
     }
     last_interrupt_time = interrupt_time;
@@ -164,16 +192,13 @@ void refreshDisplay()
 
     if (displayMode == 0)
     {
-        lv_label_set_text(ui_DisplayLabel, speedStr);
-        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Altitude");
+        lv_label_set_text(ui_DisplayLabel, speedStr);        
     }
     else if (displayMode == 1)
     {
-        lv_label_set_text(ui_DisplayLabel, altitudeStr);
-        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Speed");
+        lv_label_set_text(ui_DisplayLabel, altitudeStr);        
     }
-    lv_label_set_text(button_label, buttonLabelStr);
-
+    
     float batteryVoltage = analogRead(BATTERY_PIN) * (3.3 / 4095.0) * 2;
     snprintf(batteryStr, sizeof(batteryStr), "Battery: %.1f V", batteryVoltage);
     lv_label_set_text(ui_BatteryLabel, batteryStr);
@@ -298,14 +323,16 @@ void setup()
     is_initialized_lvgl = true;
 
     InitScreen();
-    lv_obj_add_event_cb(ui_Button1, btn_event_handler, LV_EVENT_CLICKED, NULL);
+
+    Serial.println("Setup complete");
+
     if (!SPIFFS.begin(true))
     {
         Serial.println("An error occurred while mounting SPIFFS");
         return;
     }
 
-    displayImage("/background.jpeg", ui_Panel1);
+    displayImage("/kelly.jpeg");
 
     connectToWiFi();
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
