@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <TouchDrvCSTXXX.hpp>
 #include "pin_config.h"
 #include "lv_conf.h"
 #include "lvgl.h"
@@ -24,7 +23,6 @@ const int daylightOffset_sec = 3600;
 #define BUTTON_PIN 14
 #define BATTERY_PIN 4
 
-TouchDrvCSTXXX touch;
 int16_t x[5], y[5];
 
 esp_lcd_panel_io_handle_t io_handle = NULL;
@@ -88,17 +86,7 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
     esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
 }
 
-static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data)
-{
-    if (touch.getPoint(x, y, touch.getSupportTouchPoint()))
-    {
-        data->point.x = *x;
-        data->point.y = *y;
-        data->state = LV_INDEV_STATE_PR;
-    }
-    else
-        data->state = LV_INDEV_STATE_REL;
-}
+
 esp_lcd_panel_handle_t panel_handle = NULL;
 
 void connectToWiFi()
@@ -182,7 +170,7 @@ void setup()
 {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
-    Serial.begin(115200); // Initialize the USB serial port for debugging
+    Serial.begin(115200); 
     gpsSerial.begin(9600, SERIAL_8N1, 12, 13);
 
     pinMode(PIN_POWER_ON, OUTPUT);
@@ -274,27 +262,11 @@ void setup()
     disp_drv.user_data = panel_handle;
     lv_disp_drv_register(&disp_drv);
 
-    touch.setPins(BOARD_TOUCH_RST, BOARD_TOUCH_IRQ);
 
-    if (!touch.begin(Wire, CST328_SLAVE_ADDRESS, BOARD_I2C_SDA, BOARD_I2C_SCL))
-    {
-        if (!touch.begin(Wire, CST816_SLAVE_ADDRESS, BOARD_I2C_SDA, BOARD_I2C_SCL))
-        {
-            while (1)
-            {
-                delay(500);
-            }
-        }
-    }
-
-    touch.setMaxCoordinates(320, 170);
-    touch.setMirrorXY(true, false);
-    touch.setSwapXY(true);
 
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = lv_touchpad_read;
     lv_indev_drv_register(&indev_drv);
     is_initialized_lvgl = true;
 
