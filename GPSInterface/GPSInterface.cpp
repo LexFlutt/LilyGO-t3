@@ -6,6 +6,7 @@
 #include <SPIFFS.h>
 #include <FS.h>
 #include <ESPAsyncWebServer.h>
+#include <math.h>
 
 #include "pin_config.h"
 #include "lv_conf.h"
@@ -28,6 +29,10 @@ const int daylightOffset_sec = 3600;
 const double MAX_DISTANCE = 0.01;
 double prevLat = -1;
 double prevLng = -1;
+
+double totalDistance = 0.0;
+
+const double R = 6371e3; // Earth radius in meters
 
 File gpxFile;
 
@@ -112,6 +117,15 @@ static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
 }
 esp_lcd_panel_handle_t panel_handle = NULL;
 
+double calculateDistance(double lat1, double lng1, double lat2, double lng2)
+{
+    double dLat = radians(lat2 - lat1);
+    double dLng = radians(lng2 - lng1);
+    double a = sin(dLat / 2) * sin(dLat / 2) + cos(radians(lat1)) * cos(radians(lat2)) * sin(dLng / 2) * sin(dLng / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+}
+
 void writeGpxFileHeader()
 {
     gpxFile.print("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n");
@@ -121,15 +135,18 @@ void writeGpxFileHeader()
     gpxFile.print("<trkseg>\n");
 }
 
-bool isGpsDataValid(double lat, double lng) {
-    if (lat == 0 || lng == 0) {
+bool isGpsDataValid(double lat, double lng)
+{
+    if (lat == 0 || lng == 0)
+    {
         Serial.println("Invalid GPS data: Latitude or Longitude is zero.");
         return false;
     }
     double deltaLat = abs(lat - prevLat);
     double deltaLng = abs(lng - prevLng);
 
-    if ((prevLat != -1 && prevLng != -1) && (deltaLat > MAX_DISTANCE || deltaLng > MAX_DISTANCE)) {
+    if ((prevLat != -1 && prevLng != -1) && (deltaLat > MAX_DISTANCE || deltaLng > MAX_DISTANCE))
+    {
         Serial.print("Invalid GPS data: Distance is too large from the previous point.\n");
         Serial.print("Current GPS: lat = ");
         Serial.print(lat, 6);
@@ -147,7 +164,6 @@ bool isGpsDataValid(double lat, double lng) {
 
     return true;
 }
-
 
 void InitGpsFile()
 {
@@ -268,13 +284,17 @@ void createFile(AsyncWebServerRequest *request)
 
 void SaveGpxData()
 {
+    // Check if GPS provides valid data for date and time
     if (!gps.time.isValid() || !gps.date.isValid())
     {
         Serial.println("Invalid GPS time or date");
         return;
     }
 
-    if (isGpsDataValid(gps.location.lat(), gps.location.lng()))
+    double lat = gps.location.lat();
+    double lng = gps.location.lng();
+
+    if (isGpsDataValid(lat, lng))
     {
         char timeStr[64];
         snprintf(timeStr, sizeof(timeStr), "%04d-%02d-%02dT%02d:%02d:%02dZ",
@@ -286,9 +306,9 @@ void SaveGpxData()
                  gps.time.second());
 
         gpxFile.print("<trkpt lat=\"");
-        gpxFile.print(gps.location.lat(), 6);
+        gpxFile.print(lat, 6);
         gpxFile.print("\" lon=\"");
-        gpxFile.print(gps.location.lng(), 6);
+        gpxFile.print(lng, 6);
         gpxFile.print("\">\n");
         gpxFile.print("<ele>");
         gpxFile.print(gps.altitude.meters());
@@ -299,6 +319,11 @@ void SaveGpxData()
         gpxFile.print("</trkpt>\n");
 
         gpxFile.flush();
+
+        if (prevLat != -1 && prevLng != -1)
+        {
+            totalDistance += calculateDistance(prevLat, prevLng, lat, lng);
+        }
     }
 }
 
@@ -314,7 +339,7 @@ void GetGpsData()
     float speed = gps.speed.kmph();
 
     snprintf(altitudeStr, sizeof(altitudeStr), "%.1f ft", altitude);
-    snprintf(speedStr, sizeof(speedStr), "%.1f km/h", speed);
+    snprintf(speedStr, sizeof(speedStr), "%.1f", speed);
 }
 
 void connectToWiFi()
@@ -371,48 +396,44 @@ void IRAM_ATTR buttonISR()
     }
     last_interrupt_time = interrupt_time;
 }
-void RefreshDisplay()
-{
-    if (!gps.time.isValid())
-    {
-        return;
-    }
 
-    int hour = gps.time.hour();
-    int minute = gps.time.minute();
-    int second = gps.time.second();
+void RefreshDisplay() {
+    if (gps.time.isValid()) {
+        int hour = gps.time.hour();
+        int minute = gps.time.minute();
+        int second = gps.time.second();
 
-    hour -= 7;
-    if (hour < 0)
-    {
-        hour += 24;
-    }
+        hour -= 7;
+        if (hour < 0) {
+            hour += 24;
+        }
 
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", hour, minute, second);
-    lv_label_set_text(ui_TimeLabel, timeStr);
+        snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", hour, minute, second);
+        lv_label_set_text(ui_TimeLabel, timeStr);
 
-    if (displayMode == 0)
-    {
-        lv_label_set_text(ui_DisplayLabel, speedStr);
-        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Altitude");
+        // Always update the speed label
+        lv_label_set_text(ui_SpeedLabel, speedStr);
+
+        // Toggle between distance and altitude
+        if (displayMode == 0) {
+            lv_label_set_text(ui_DisplayLabel, altitudeStr);
+        } else if (displayMode == 1) {
+            char distanceStr[32];
+            snprintf(distanceStr, sizeof(distanceStr), "%.2f km", totalDistance / 1000.0);
+            lv_label_set_text(ui_DisplayLabel, distanceStr);
+        }
     }
-    else if (displayMode == 1)
-    {
-        lv_label_set_text(ui_DisplayLabel, altitudeStr);
-        snprintf(buttonLabelStr, sizeof(buttonLabelStr), "Speed");
-    }
-    lv_label_set_text(button_label, buttonLabelStr);
 
     float batteryVoltage = analogRead(BATTERY_PIN) * (3.3 / 4095.0) * 2;
     snprintf(batteryStr, sizeof(batteryStr), "Battery: %.1f V", batteryVoltage);
     lv_label_set_text(ui_BatteryLabel, batteryStr);
 }
 
-void btn_event_handler(lv_event_t *e)
-{
-    displayMode = !displayMode;
+void btn_event_handler(lv_event_t *e) {
+    displayMode = (displayMode + 1) % 2; // Toggle between 0 and 1
     RefreshDisplay();
 }
+
 
 void InitScreen()
 {
@@ -550,7 +571,8 @@ void setup()
     }
     loadFileCounter();
     InitScreen();
-    lv_obj_add_event_cb(ui_Button1, btn_event_handler, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_InfoPanel, btn_event_handler, LV_EVENT_CLICKED, NULL);
+    
     connectToWiFi();
     // configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     InitGpsFile();
